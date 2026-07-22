@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* v4 定义主题变量的方式 */
+@theme {
+  --color-brand: #3b82f6;
+  --radius-xl: 1rem;
+}
+
+/* 全局基础样式 */
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+}

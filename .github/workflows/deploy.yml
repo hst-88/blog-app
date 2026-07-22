@@ -1,0 +1,23 @@
+name: Deploy TaskHub
+
+on:
+  push:
+    branches: [ main ] # 监听 main 分支的推送
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout &#x1f6ce;&#xfe0f;
+        uses: actions/checkout@v4
+
+      - name: Install and Build &#x1f527;
+        run: |
+          npm install
+          npm run build
+
+      - name: Deploy &#x1f680;
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist # 打包产物目录
+          branch: gh-pages # 部署到这个分支
