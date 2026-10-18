@@ -59,3 +59,12 @@ Entries discovered by the Agent during task execution should follow this format:
   - Appointment seat capacity comes from `store.appointmentSettings` (per-slot capacity + slot list + closed dates), admin-editable via `GET/PUT /api/admin/settings/appointments`; admin UI is `/admin/settings/appointments`.
   - All packages share one global slot pool, so a date's total bookable count equals `slotCapacity x slotsPerDay`; cancellation frees the seat.
   - C-side reads `GET /api/appointments/availability?date=YYYY-MM-DD`, which returns `capacity`, `slotsPerDay`, `totalRemaining`, `closed`, and per-slot `used/remaining/full`.
+
+[Project Knowledge Summary]
+- Date: 2026-10-18
+- Context: Discovered by Agent while fixing the server test command
+- Category: Testing Methods
+- Instructions:
+  - Run server tests with `cd /workspace/server && npm test`, which uses `tsx --test src/**/*.spec.ts`; plain `node --experimental-strip-types` cannot resolve the `.js` import paths of `.ts` sources.
+  - Verify server syntax without starting it via `npx esbuild src/main.ts --bundle --platform=node --packages=external --outfile=/tmp/jh-main.js`.
+  - Build the unified frontend with `cd /workspace/web-admin && npm run build`.
