@@ -1,0 +1,5 @@
+.card { padding: 16px; margin: 12px; background: #fff; border-radius: 8px; }
+.risk.low { color: #16a34a; }
+.risk.mid { color: #ca8a04; }
+.risk.high { color: #dc2626; }
+.page { background: #f1f5f9; min-height: 100vh; }

@@ -1,0 +1,6 @@
+<view class="page">
+  <view wx:for="{{items}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="open">
+    <view>{{item.examDate}} · {{item.orgName}}</view>
+    <view class="risk {{item.riskLevel}}">风险 {{item.riskLevel}} · 异常 {{item.abnormalCount}}</view>
+  </view>
+</view>

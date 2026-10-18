@@ -1,0 +1,4 @@
+<view class="page">
+  <view>{{text}}</view>
+  <view class="disc">{{disclaimer}}</view>
+</view>

@@ -1,0 +1,6 @@
+<view>
+  <input placeholder="收缩压" bindinput="onSbp" />
+  <button bindtap="save">记录血压</button>
+  <view wx:if="{{hint}}" style="color:red">{{hint}}</view>
+  <view wx:for="{{items}}" wx:key="id">{{item.createdAt}} {{item.type}}</view>
+</view>

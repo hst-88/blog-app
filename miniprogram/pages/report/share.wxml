@@ -1,0 +1,5 @@
+<view>
+  <view>{{hint}}</view>
+  <button bindtap="download">下载 PDF</button>
+  <button open-type="share">分享给好友</button>
+</view>

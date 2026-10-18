@@ -1,0 +1,10 @@
+<view wx:if="{{report}}">
+  <view>{{report.examDate}} {{report.orgName}}</view>
+  <block wx:for="{{report.indicators}}" wx:key="id">
+    <view class="{{item.status}}" data-name="{{item.name}}" bindtap="ask">
+      {{item.department}} {{item.name}} {{item.valueText}}{{item.unit}} （{{item.refRange}}） {{item.arrow}}
+    </view>
+  </block>
+  <button bindtap="interpret">整体解读</button>
+  <button bindtap="share">下载/分享</button>
+</view>

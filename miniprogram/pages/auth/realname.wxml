@@ -1,0 +1,6 @@
+<view class="page">
+  <input placeholder="真实姓名" bindinput="onName" />
+  <input placeholder="身份证号" bindinput="onId" />
+  <button type="primary" bindtap="submit">认证</button>
+  <view>{{msg}}</view>
+</view>

@@ -1,0 +1,4 @@
+<view wx:if="{{risk}}">
+  <view wx:for="{{risk.diseases}}" wx:key="name">{{item.name}} {{item.level}}</view>
+  <view wx:for="{{risk.radar}}" wx:key="dim">{{item.dim}} {{item.score}}</view>
+</view>

@@ -1,0 +1,24 @@
+{
+  "pages": [
+    "pages/auth/login",
+    "pages/auth/bind-phone",
+    "pages/auth/profile",
+    "pages/auth/realname",
+    "pages/report/list",
+    "pages/report/detail",
+    "pages/report/interpret",
+    "pages/report/share",
+    "pages/risk/index",
+    "pages/consult/list",
+    "pages/consult/chat",
+    "pages/recheck/appoint",
+    "pages/health/log",
+    "pages/health/remind"
+  ],
+  "window": {
+    "navigationBarTitleText": "检后无忧",
+    "navigationBarBackgroundColor": "#0ea5e9",
+    "navigationBarTextStyle": "white"
+  },
+  "style": "v2"
+}

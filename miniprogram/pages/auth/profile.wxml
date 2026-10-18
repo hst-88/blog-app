@@ -1,0 +1,5 @@
+<view class="page">
+  <input placeholder="年龄 1-120" bindinput="onAge" />
+  <button type="primary" bindtap="save">保存资料</button>
+  <view>{{msg}}</view>
+</view>

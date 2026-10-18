@@ -1,0 +1,2 @@
+.high, .low { color: #dc2626; }
+.normal { color: #334155; }

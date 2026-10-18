@@ -1,0 +1,5 @@
+<view>
+  <view wx:for="{{messages}}" wx:key="id">{{item.senderRole}}: {{item.content}}</view>
+  <input bindinput="onText" value="{{text}}" />
+  <button bindtap="send">发送</button>
+</view>

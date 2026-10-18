@@ -1,0 +1,7 @@
+<view class="page">
+  <view class="title">检后无忧</view>
+  <view class="sub">看懂报告 · 获得指导 · 持续管理</view>
+  <button type="primary" bindtap="onAuth">微信一键授权</button>
+  <button bindtap="onDeny">暂不授权</button>
+  <view wx:if="{{denied}}" class="err">请允许授权以使用完整功能</view>
+</view>
