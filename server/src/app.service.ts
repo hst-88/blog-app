@@ -1002,21 +1002,98 @@ export class AppService {
   }
 
   stats(q: any) {
+    const org = q.org ? String(q.org) : ''
     const reports = [...store.reports.values()].filter((r) => {
-      if (q.org && r.orgName !== q.org) return false
+      if (org && r.orgName !== org) return false
       if (q.from && r.examDate < q.from) return false
       if (q.to && r.examDate > q.to) return false
       return true
     })
-    const inds = [...store.indicators.values()].filter((i) => reports.some((r) => r.id === i.reportId))
+    const reportIds = new Set(reports.map((r) => r.id))
+    const userIdsWithReport = new Set(reports.map((r) => r.userId).filter(Boolean))
+    const inds = [...store.indicators.values()].filter((i) => reportIds.has(i.reportId))
     const abnormal = inds.filter((i) => i.status !== 'normal').length
+    const appts = [...store.appointments.values()]
+    const booked = appts.filter((a) => a.status === 'booked')
+    const cancelled = appts.filter((a) => a.status === 'cancelled')
+    const userIdsBooked = new Set(booked.map((a) => a.userId))
+    const alerts = [...store.alerts.values()].filter((a) => !a.reportId || reportIds.has(a.reportId) || !org)
+    const consults = [...store.consultations.values()]
+    const userIdsConsulted = new Set(consults.map((c) => c.userId))
+    const doctorReplies = store.messages.filter((m) => m.senderRole === 'doctor').length
+    const userMsgs = store.messages.filter((m) => m.senderRole === 'user').length
+    const fus = [...store.followups.values()]
+    const reminders = store.reminders
+    const highRiskIds = new Set(reports.filter((r) => r.riskLevel === 'high' || r.riskLevel === 'mid').map((r) => r.userId).filter(Boolean))
+    const unconsultedRisk = [...highRiskIds].filter((id) => !userIdsConsulted.has(id)).length
+    const byPackage: Record<string, { name: string; booked: number; cancelled: number }> = {}
+    for (const a of appts) {
+      const name = a.packageName || '未命名套餐'
+      byPackage[name] = byPackage[name] || { name, booked: 0, cancelled: 0 }
+      if (a.status === 'cancelled') byPackage[name].cancelled += 1
+      else byPackage[name].booked += 1
+    }
+    const orgs = [...new Set([...store.reports.values()].map((r) => r.orgName).filter(Boolean))]
+    const users = store.users.size
+    const matchedReports = reports.filter((r) => r.userId).length
     return {
+      org: org || '全部机构',
+      orgs,
+      generatedAt: new Date().toISOString(),
       reportCount: reports.length,
       indicatorCount: inds.length,
       abnormalRate: inds.length ? abnormal / inds.length : 0,
       detectRate: reports.filter((r) => r.abnormalCount > 0).length / (reports.length || 1),
-      byName: this.groupRate(inds),
+      byName: this.groupRate(inds).sort((a, b) => b.rate - a.rate).slice(0, 8),
+      funnel: {
+        users,
+        appointed: userIdsBooked.size,
+        withReport: userIdsWithReport.size,
+        consulted: userIdsConsulted.size,
+        matchedReports,
+      },
+      appointment: {
+        booked: booked.length,
+        cancelled: cancelled.length,
+        byPackage: Object.values(byPackage),
+      },
+      intervention: {
+        alertsOpen: alerts.filter((a) => a.status === 'open').length,
+        alertsHandled: alerts.filter((a) => a.status === 'handled').length,
+        followupsOpen: fus.filter((f) => !f.archivedAt).length,
+        followupsDone: fus.filter((f) => f.archivedAt).length,
+        remindersPending: reminders.filter((r) => r.status === 'pending').length,
+        remindersDone: reminders.filter((r) => r.status === 'done').length,
+        consults: consults.length,
+        userMessages: userMsgs,
+        doctorReplies,
+        unconsultedRisk,
+        healthLogs: store.healthLogs.length,
+        aiChats: store.aiChats.length,
+      },
+      narrative: this.statsNarrative({
+        users,
+        appointed: userIdsBooked.size,
+        reportCount: reports.length,
+        matchedReports,
+        detectRate: reports.filter((r) => r.abnormalCount > 0).length / (reports.length || 1),
+        alertsOpen: alerts.filter((a) => a.status === 'open').length,
+        consulted: userIdsConsulted.size,
+        doctorReplies,
+        remindersPending: reminders.filter((r) => r.status === 'pending').length,
+        unconsultedRisk,
+      }),
     }
+  }
+
+  statsNarrative(s: any) {
+    const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '0%')
+    return [
+      `注册用户 ${s.users} 人，其中 ${s.appointed} 人已在 C 端完成体检预约（转化 ${pct(s.appointed, s.users)}）。`,
+      `已入库报告 ${s.reportCount} 份，身份证匹配到用户 ${s.matchedReports} 份，异常检出率 ${(s.detectRate * 100).toFixed(1)}%。`,
+      `医生端未处理预警 ${s.alertsOpen} 条；${s.consulted} 名用户发起过咨询，医生已回复 ${s.doctorReplies} 条。`,
+      `待完成复查提醒 ${s.remindersPending} 条；中高风险尚未咨询医生 ${s.unconsultedRisk} 人，可从用户管理筛出后推送或由医生主动随访。`,
+    ]
   }
 
   groupRate(inds: any[]) {

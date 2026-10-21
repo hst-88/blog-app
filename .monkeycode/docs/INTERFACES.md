@@ -76,9 +76,9 @@ Base URL：前端经 Vite 走 `/api`，后端监听 `http://127.0.0.1:3001/api`�
 | GET | `/admin/imports/template` | 导入页 | xlsx |
 | POST | `/admin/imports` | 导入页 | multipart |
 | POST | `/admin/fhir/ingest` | FHIR 页 | |
-| GET | `/admin/stats` | 统计 | |
-| POST | `/admin/stats/whitepaper` | 统计 | |
-| POST | `/admin/stats/export` | 统计 | JSON |
+| GET | `/admin/stats` | 白皮书 | 漏斗、预约、异常 TOP、医生干预、narrative 文案 |
+| POST | `/admin/stats/whitepaper` | 白皮书 | 同上，带 charts 标记 |
+| POST | `/admin/stats/export` | 白皮书 | 导出上述 JSON |
 | GET | `/admin/users` | 用户页 | q.name/date/package |
 | GET | `/admin/users/export` | 用户页 | CSV |
 | POST | `/admin/push` | 用户页 | 排队推送 |
