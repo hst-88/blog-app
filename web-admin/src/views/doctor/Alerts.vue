@@ -3,7 +3,7 @@
     <template #header>
       <div>
         <b>预警中心</b>
-        <p>导入报告触发的异常会在此出现，处理后可转入随访</p>
+        <p>导入报告与用户血压危急打卡都会出现在此；发起随访时同步给患者发复查提醒</p>
       </div>
     </template>
     <el-empty v-if="!items.length" description="暂无未处理预警，可在管理端导入示例数据" />
@@ -38,7 +38,7 @@ async function handle(row, followup) {
     followup,
     dueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
   })
-  ElMessage.success(followup ? '已转入随访' : '已标记处理')
+    ElMessage.success(followup ? '已转入随访，患者端复查提醒同步可见' : '已标记处理')
   load()
 }
 onMounted(load)

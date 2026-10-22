@@ -1,13 +1,25 @@
-export function assessRisk(user: { age: number | null; gender: string | null }, indicators: { name: string; status: string; valueText: string }[]) {
-  const score = (pred: (i: any) => boolean) => {
-    const hits = indicators.filter(pred).length
-    return Math.min(100, hits * 25 + (user.age && user.age > 50 ? 15 : 0))
+export function assessRisk(
+  user: { age: number | null; gender: string | null },
+  indicators: { name: string; status: string; valueText: string }[],
+  weights: { metabolic?: number; cardio?: number; liver?: number; respiratory?: number; bone?: number } = {},
+) {
+  const w = {
+    metabolic: Number(weights.metabolic ?? 1),
+    cardio: Number(weights.cardio ?? 1),
+    liver: Number(weights.liver ?? 1),
+    respiratory: Number(weights.respiratory ?? 1),
+    bone: Number(weights.bone ?? 1),
   }
-  const metabolic = score((i) => /血糖|胆固醇|甘油三酯|体重/.test(i.name) && i.status !== 'normal')
-  const cardio = score((i) => /血压|心|胆固醇/.test(i.name) && i.status !== 'normal')
-  const liver = score((i) => /转氨酶|肝/.test(i.name) && i.status !== 'normal')
-  const respiratory = score((i) => /肺|呼吸/.test(i.name) && i.status !== 'normal')
-  const bone = score((i) => /骨|钙/.test(i.name) && i.status !== 'normal')
+  const score = (pred: (i: any) => boolean, key: keyof typeof w) => {
+    const hits = indicators.filter(pred).length
+    const raw = hits * 25 + (user.age && user.age > 50 ? 15 : 0)
+    return Math.min(100, Math.round(raw * (Number.isFinite(w[key]) ? w[key] : 1)))
+  }
+  const metabolic = score((i) => /血糖|胆固醇|甘油三酯|体重/.test(i.name) && i.status !== 'normal', 'metabolic')
+  const cardio = score((i) => /血压|心|胆固醇/.test(i.name) && i.status !== 'normal', 'cardio')
+  const liver = score((i) => /转氨酶|肝/.test(i.name) && i.status !== 'normal', 'liver')
+  const respiratory = score((i) => /肺|呼吸/.test(i.name) && i.status !== 'normal', 'respiratory')
+  const bone = score((i) => /骨|钙/.test(i.name) && i.status !== 'normal', 'bone')
   const diseases = [
     { name: '高血压', level: cardio >= 50 ? 'high' : cardio >= 25 ? 'mid' : 'low' },
     { name: '糖尿病', level: metabolic >= 50 ? 'high' : metabolic >= 25 ? 'mid' : 'low' },

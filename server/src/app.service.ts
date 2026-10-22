@@ -423,7 +423,18 @@ export class AppService {
     const reports = [...store.reports.values()].filter((r) => r.userId === user.sub)
     const latest = reports.sort((a, b) => b.examDate.localeCompare(a.examDate))[0]
     const inds = latest ? [...store.indicators.values()].filter((i) => i.reportId === latest.id) : []
-    return { ...assessRisk(u, inds), modelVersion: store.riskModel.version }
+    const assessed = assessRisk(u, inds, store.riskModel.weights)
+    const high = (assessed.diseases || []).filter((d: any) => d.level === 'high' || d.level === 'mid')
+    return {
+      ...assessed,
+      modelVersion: store.riskModel.version,
+      reportId: latest?.id || null,
+      examDate: latest?.examDate || '',
+      abnormalCount: latest?.abnormalCount || 0,
+      advice: high.length
+        ? `「${high.map((d: any) => d.name).join('、')}」分层偏高，建议咨询签约医生或预约复查`
+        : '当前分层以低风险为主，可结合打卡持续观察',
+    }
   }
 
   listPatients(user: any, q: any) {
@@ -534,9 +545,16 @@ export class AppService {
     a.handledAt = new Date().toISOString()
     a.handleMethod = body.method || 'marked'
     store.auditLog(user.sub, 'alert.handle', { id, method: a.handleMethod }, '')
-    if (body.followup) {
+    if (body.followup && a.patientId && store.doctorPatients.has(`${user.sub}:${a.patientId}`)) {
+      this.createFollowups(user, {
+        patientIds: [a.patientId],
+        cycle: 'monthly',
+        dueDate: body.dueDate,
+        content: `${a.indicatorName || '异常指标'}随访复查`,
+      })
+    } else if (body.followup) {
       const fid = store.seq.fu.next()
-      store.followups.set(fid, { id: fid, patientId: a.patientId, doctorId: user.sub, cycle: 'monthly', dueDate: body.dueDate, overdue: false })
+      store.followups.set(fid, { id: fid, patientId: a.patientId, doctorId: user.sub, cycle: 'monthly', dueDate: body.dueDate, overdue: false, archivedAt: null, result: null })
     }
     store.touch()
     return { ok: true }
@@ -782,18 +800,139 @@ export class AppService {
 
   doctorOverview(user: any) {
     const ids = [...store.doctorPatients].filter((k) => k.startsWith(`${user.sub}:`)).map((k) => Number(k.split(':')[1]))
+    const nameOf = (pid: number) => {
+      const u = store.users.get(pid)
+      return u ? decryptField(u.realNameEnc) || u.nickname || `患者${pid}` : `患者${pid}`
+    }
     const alerts = [...store.alerts.values()].filter((a) => a.patientId && ids.includes(a.patientId))
     const consults = [...store.consultations.values()].filter((c) => c.doctorId === user.sub)
     const fus = [...store.followups.values()].filter((f) => f.doctorId === user.sub)
+    const openAlerts = alerts.filter((a) => a.status === 'open')
+    const overdueFus = fus.filter((f) => !f.archivedAt && (f.overdue || (f.dueDate && new Date(f.dueDate) < new Date())))
+    const pendingRems = store.reminders.filter((r) => r.doctorId === user.sub && r.status === 'pending')
+    const unreadMsgs = store.messages.filter((m) => consults.some((c) => c.id === m.consultationId) && m.senderRole === 'user' && m.status === 'unread')
+    const unreadConsults = consults
+      .map((c) => {
+        const msgs = store.messages.filter((m) => m.consultationId === c.id)
+        const last = msgs.at(-1)
+        const unread = msgs.filter((m) => m.senderRole === 'user' && m.status === 'unread').length
+        return unread ? { ...c, unread, lastText: (last?.content || '').slice(0, 36) } : null
+      })
+      .filter(Boolean)
+    const todos = [
+      ...openAlerts.slice(0, 4).map((a) => ({
+        key: `a${a.id}`,
+        kind: a.indicatorName === '收缩压' ? '危急打卡' : '预警',
+        label: `${nameOf(a.patientId)} · ${a.indicatorName || '异常指标'}`,
+        extra: a.level === 'high' ? '高危' : a.level === 'mid' ? '中危' : '关注',
+        to: '/doctor/alerts',
+        type: 'danger',
+      })),
+      ...unreadConsults.slice(0, 4).map((c: any) => ({
+        key: `c${c.id}`,
+        kind: '待回复',
+        label: `${nameOf(c.userId)} · ${c.lastText || '新咨询'}`,
+        extra: `未读 ${c.unread}`,
+        to: '/doctor/consult',
+        type: 'warning',
+      })),
+      ...overdueFus.slice(0, 3).map((f) => ({
+        key: `f${f.id}`,
+        kind: '逾期随访',
+        label: `${nameOf(f.patientId)} · ${f.content || '定期随访'}`,
+        extra: f.dueDate || '',
+        to: '/doctor/followups',
+        type: 'danger',
+      })),
+      ...pendingRems.slice(0, 3).map((r) => ({
+        key: `r${r.id}`,
+        kind: '待复查',
+        label: `${nameOf(r.userId)} · ${r.title}`,
+        extra: r.dueDate || '',
+        to: '/doctor/followups',
+        type: 'warning',
+      })),
+    ].slice(0, 8)
+    const consultTrend = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date()
+      d.setHours(0, 0, 0, 0)
+      d.setDate(d.getDate() - (6 - i))
+      const day = d.toISOString().slice(0, 10)
+      const next = new Date(d.getTime() + 86400000).toISOString()
+      const count = store.messages.filter((m) =>
+        consults.some((c) => c.id === m.consultationId) &&
+        m.senderRole === 'user' &&
+        m.createdAt >= `${day}T00:00:00.000Z` &&
+        m.createdAt < next,
+      ).length
+      return { day: day.slice(5), count }
+    })
+    const staff = store.staff.get(user.sub)
     return {
+      doctorName: staff?.name || '医生',
+      title: staff?.title || '',
       patients: ids.length,
-      alertsOpen: alerts.filter((a) => a.status === 'open').length,
+      alertsOpen: openAlerts.length,
       consults: consults.length,
-      unread: store.messages.filter((m) => consults.some((c) => c.id === m.consultationId) && m.senderRole === 'user' && m.status === 'unread').length,
-      followups: fus.length,
-      overdue: fus.filter((f) => f.overdue && !f.archivedAt).length,
+      unread: unreadMsgs.length,
+      followups: fus.filter((f) => !f.archivedAt).length,
+      overdue: overdueFus.length,
+      remindersPending: pendingRems.length,
+      bpAlerts: openAlerts.filter((a) => a.indicatorName === '收缩压').length,
       edu: store.eduPosts.filter((p) => p.doctorId === user.sub).length,
+      todos,
+      consultTrend,
     }
+  }
+
+  createFollowups(user: any, body: any) {
+    const ids = (body.patientIds || [body.patientId]).map((n: any) => Number(n)).filter(Boolean)
+    const dueDate = String(body.dueDate || '').slice(0, 10)
+    const title = (body.content || body.title || '定期随访复查').slice(0, 40)
+    const created = ids.map((pid: number) => {
+      if (!store.doctorPatients.has(`${user.sub}:${pid}`)) throw Errors.forbidden()
+      const id = store.seq.fu.next()
+      const row = {
+        id,
+        patientId: pid,
+        doctorId: user.sub,
+        cycle: body.cycle || 'monthly',
+        method: body.method || 'phone',
+        content: body.content || '',
+        dueDate,
+        overdue: dueDate ? new Date(dueDate) < new Date() : false,
+        archivedAt: null,
+        result: null,
+      }
+      store.followups.set(id, row)
+      this.addReminder(user, { patientId: pid, title, dueDate, type: 'followup' })
+      return row
+    })
+    store.touch()
+    store.auditLog(user.sub, 'followup.create', { count: created.length, dueDate }, '')
+    return { items: created }
+  }
+
+  listFollowups(user: any) {
+    return {
+      items: [...store.followups.values()]
+        .filter((f) => f.doctorId === user.sub)
+        .map((f) => {
+          const p = store.users.get(f.patientId)
+          const name = p ? decryptField(p.realNameEnc) || p.nickname || `患者${p.id}` : `患者${f.patientId}`
+          const overdue = !f.archivedAt && f.dueDate ? new Date(f.dueDate) < new Date() : !!f.overdue
+          return { ...f, overdue, patientName: name }
+        }),
+    }
+  }
+
+  followupResult(user: any, id: number, body: any) {
+    const f = store.followups.get(id)
+    if (!f || f.doctorId !== user.sub) throw Errors.forbidden()
+    f.result = body
+    f.archivedAt = new Date().toISOString()
+    store.touch()
+    return f
   }
 
   listEdu(user: any) {
@@ -807,12 +946,38 @@ export class AppService {
   }
 
   addHealthLog(user: any, body: any) {
-    const sbp = body.type === 'bp' ? Number(body.sbp || body.value) : 0
-    const abnormal = body.type === 'bp' && sbp > BP_CRITICAL_SBP
-    const row = { id: store.healthLogs.length + 1, userId: user.sub, type: body.type, value: body, abnormal, createdAt: new Date().toISOString() }
+    const type = ['bp', 'glucose', 'weight', 'steps'].includes(body.type) ? body.type : 'bp'
+    const sbp = type === 'bp' ? Number(body.sbp || body.value || 0) : 0
+    const dbp = type === 'bp' ? Number(body.dbp || 0) : 0
+    const num = Number(body.value || 0)
+    const value =
+      type === 'bp' ? { sbp, dbp, unit: 'mmHg' }
+        : type === 'glucose' ? { value: num, unit: 'mmol/L' }
+          : type === 'weight' ? { value: num, unit: 'kg' }
+            : { value: Math.round(num), unit: '步' }
+    const abnormal = type === 'bp' && sbp > BP_CRITICAL_SBP
+    const row = { id: store.healthLogs.length + 1, userId: user.sub, type, value, abnormal, createdAt: new Date().toISOString() }
     store.healthLogs.push(row)
+    if (abnormal) {
+      const latest = [...store.reports.values()].filter((r) => r.userId === user.sub).sort((a, b) => b.examDate.localeCompare(a.examDate))[0]
+      const aid = store.seq.alert.next()
+      store.alerts.set(aid, {
+        id: aid,
+        reportId: latest?.id || 0,
+        patientId: user.sub,
+        level: 'high',
+        status: 'open',
+        handledBy: null,
+        handledAt: null,
+        handleMethod: '',
+        indicatorName: '收缩压',
+      })
+    }
     store.touch()
-    return { ...row, hint: abnormal ? '血压偏高，请及时就医' : '' }
+    const hint = abnormal
+      ? `收缩压 ${sbp} mmHg 已超过 ${BP_CRITICAL_SBP}，已通知签约医生，请及时就医或在线咨询`
+      : type === 'bp' && sbp >= 140 ? '收缩压偏高，建议结合打卡趋势咨询医生' : ''
+    return { ...row, hint, alertCreated: abnormal }
   }
 
   listHealthLogs(user: any, userId?: number) {

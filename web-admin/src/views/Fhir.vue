@@ -1,7 +1,10 @@
 <template>
   <el-card>
     <h3 class="jh-page-title">HL7/FHIR 接入</h3>
-    <p class="jh-page-sub">支持 messageId 去重与 resumeToken 续传，可附带报告行同步入库</p>
+    <p class="jh-page-sub">与「数据导入」同一条入库链：按身份证匹配已注册用户，报告进 C 端，异常按预警阈值进医生预警中心</p>
+    <el-alert type="info" :closable="false" style="margin-bottom:16px" title="会改哪些页">
+      推送成功后：C 端报告列表/详情、首页健康概览、风险评估会更新；医生端患者档案、预警中心、工作台未处理预警会增加；管理端运营总览与统计白皮书同步。重复 messageId 不会再给用户多一份报告。
+    </el-alert>
     <el-form label-width="120px" style="max-width:560px">
       <el-form-item label="来源系统"><el-input v-model="sourceSystem" /></el-form-item>
       <el-form-item label="消息 ID"><el-input v-model="messageId" /></el-form-item>
@@ -34,6 +37,6 @@ async function ingest(withRows) {
     rows,
   })
   resumeToken.value = res.value.resumeToken
-  ElMessage.success(res.value.duplicated ? '重复消息' : '已接入')
+  ElMessage.success(res.value.duplicated ? '重复消息' : '已接入，C 端报告与医生预警已同步')
 }
 </script>

@@ -100,7 +100,7 @@ async function saveRemind() {
 async function makeFu() {
   const due = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
   await doctorHttp.post('/followups', { patientIds: [Number(route.params.id)], cycle: 'monthly', dueDate: due })
-  ElMessage.success('已制定月随访')
+  ElMessage.success('已制定月随访，患者端复查提醒同步可见')
   data.value = await doctorHttp.get(`/doctor/patients/${route.params.id}/record`)
 }
 </script>

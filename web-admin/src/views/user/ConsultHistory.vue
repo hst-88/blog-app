@@ -1,7 +1,8 @@
 <template>
   <div>
-    <div class="mp-nav">
+    <div class="mp-nav plain">
       <div class="row">
+        <span class="back" @click="$router.back()">‹</span>
         <h1>咨询记录</h1>
         <span class="ghost" @click="start">发起咨询</span>
       </div>

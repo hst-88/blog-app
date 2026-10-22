@@ -4,7 +4,7 @@
       <div class="hd">
         <div>
           <b>随访任务</b>
-          <p>可按签约患者批量制定月随访，逾期标红</p>
+          <p>随访是医生任务；创建时会同步给患者发复查提醒，用户端「复查提醒」可见</p>
         </div>
         <el-button type="primary" @click="create">为签约患者制定月随访</el-button>
       </div>
@@ -59,8 +59,8 @@ async function create() {
   const patients = (await doctorHttp.get('/doctor/patients')).items || []
   if (!patients.length) return ElMessage.warning('暂无签约患者')
   const due = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
-  await doctorHttp.post('/followups', { patientIds: patients.map((p) => p.id), cycle: 'monthly', dueDate: due })
-  ElMessage.success('已为签约患者制定月随访')
+  await doctorHttp.post('/followups', { patientIds: patients.map((p) => p.id), cycle: 'monthly', dueDate: due, content: '定期随访复查' })
+  ElMessage.success('已制定月随访，患者端复查提醒同步可见')
   load()
 }
 function open(row) {
@@ -72,7 +72,7 @@ function open(row) {
 }
 async function save() {
   await doctorHttp.post(`/followups/${current.value.id}/result`, { ...form })
-  ElMessage.success('已记录随访结果')
+  ElMessage.success('已归档随访结果，患者档案时间线可见')
   show.value = false
   load()
 }

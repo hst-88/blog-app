@@ -218,39 +218,12 @@ export class AppController {
 
   @Post('followups')
   followup(@Req() req: Request, @Body() body: any) {
-    const u = auth(req, ['doctor'])
-    const ids = body.patientIds || [body.patientId]
-    const created = ids.map((pid: number) => {
-      const id = store.seq.fu.next()
-      const row = {
-        id,
-        patientId: pid,
-        doctorId: u.sub,
-        cycle: body.cycle || 'monthly',
-        method: body.method || 'phone',
-        content: body.content || '',
-        dueDate: body.dueDate,
-        overdue: body.dueDate ? new Date(body.dueDate) < new Date() : false,
-      }
-      store.followups.set(id, row)
-      return row
-    })
-    store.touch()
-    return { items: created }
+    return this.app.createFollowups(auth(req, ['doctor']), body)
   }
 
   @Get('followups')
   listFu(@Req() req: Request) {
-    const u = auth(req, ['doctor'])
-    return {
-      items: [...store.followups.values()]
-        .filter((f) => f.doctorId === u.sub)
-        .map((f) => {
-          const p = store.users.get(f.patientId)
-          const name = p ? (decryptField(p.realNameEnc) || p.nickname || `患者${p.id}`) : `患者${f.patientId}`
-          return { ...f, patientName: name }
-        }),
-    }
+    return this.app.listFollowups(auth(req, ['doctor']))
   }
 
   @Get('admin/overview')
@@ -261,13 +234,7 @@ export class AppController {
 
   @Post('followups/:id/result')
   fuResult(@Req() req: Request, @Param('id') id: string, @Body() body: any) {
-    auth(req, ['doctor'])
-    const f = store.followups.get(Number(id))
-    if (!f) throw Errors.forbidden()
-    f.result = body
-    f.archivedAt = new Date().toISOString()
-    store.touch()
-    return f
+    return this.app.followupResult(auth(req, ['doctor']), Number(id), body)
   }
 
   @Get('edu')
@@ -520,7 +487,22 @@ export class AppController {
   @Put('admin/settings/risk-model')
   riskModel(@Req() req: Request, @Body() body: any) {
     auth(req, ['admin'])
-    store.riskModel = { ...store.riskModel, ...body }
+    const prev = store.riskModel
+    const weights = body.weights || prev.weights || {}
+    const num = (v: any, d: number) => {
+      const n = Number(v)
+      return Number.isFinite(n) ? Math.min(5, Math.max(0, n)) : d
+    }
+    store.riskModel = {
+      version: String(body.version || prev.version || 'v1').slice(0, 20),
+      weights: {
+        metabolic: num(weights.metabolic, 1),
+        cardio: num(weights.cardio, 1),
+        liver: num(weights.liver, 1),
+        respiratory: num(weights.respiratory, 1),
+        bone: num(weights.bone, 1),
+      },
+    }
     store.touch()
     return store.riskModel
   }

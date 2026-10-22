@@ -112,6 +112,8 @@ onMounted(async () => {
     reportId.value = list[0]?.id || null
   }
   if (reportId.value) await load()
+  const preset = String(route.query.q || '').trim()
+  if (preset && reportId.value) await ask(preset)
 })
 </script>
 <style scoped>

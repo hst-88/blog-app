@@ -17,8 +17,9 @@
     </el-aside>
     <el-container>
       <el-header>
-        <span>基层医生端</span>
+        <span>基层医生端 · 签约患者检后管理</span>
         <div>
+          <el-button text @click="$router.push('/doctor/consult')">咨询</el-button>
           <el-button text @click="$router.push('/')">三端入口</el-button>
           <el-button text @click="logout">退出</el-button>
         </div>

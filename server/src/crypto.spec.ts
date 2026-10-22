@@ -69,4 +69,11 @@ describe('risk', () => {
     const r = assessRisk({ age: 35, gender: 'male' }, [{ name: '谷丙转氨酶', status: 'high', valueText: '45' }])
     assert.equal(r.radar.find((x) => x.dim === '肝肾风险').score > 0, true)
   })
+  it('applies model weights', () => {
+    const inds = [{ name: '血糖', status: 'high', valueText: '7.1' }]
+    const base = assessRisk({ age: 35, gender: 'male' }, inds)
+    const boosted = assessRisk({ age: 35, gender: 'male' }, inds, { metabolic: 2 })
+    const meta = (r) => r.radar.find((x) => x.dim === '代谢风险').score
+    assert.equal(meta(boosted), Math.min(100, meta(base) * 2))
+  })
 })
